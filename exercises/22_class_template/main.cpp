@@ -1,4 +1,5 @@
 ﻿#include "../exercise.h"
+#include <cstring>
 
 // READ: 类模板 <https://zh.cppreference.com/w/cpp/language/class_template>
 
@@ -7,9 +8,14 @@ struct Tensor4D {
     unsigned int shape[4];
     T *data;
 
-    Tensor4D(unsigned int const shape_[4], T const *data_) {
+    Tensor4D(unsigned int const *shape_, T const *data_) {
         unsigned int size = 1;
         // TODO: 填入正确的 shape 并计算 size
+        for (size_t i = 0; i < 4; i++)
+        {
+            shape[i] = shape_[i];
+            size *= shape[i];
+        }
         data = new T[size];
         std::memcpy(data, data_, size * sizeof(T));
     }
@@ -21,6 +27,11 @@ struct Tensor4D {
     Tensor4D(Tensor4D const &) = delete;
     Tensor4D(Tensor4D &&) noexcept = delete;
 
+    // 访问元素
+    T& at(size_t i, size_t j, size_t k, size_t l) const {
+        return data[((i * shape[1] + j) * shape[2] + k) * shape[3] + l];
+    }
+
     // 这个加法需要支持“单向广播”。
     // 具体来说，`others` 可以具有与 `this` 不同的形状，形状不同的维度长度必须为 1。
     // `others` 长度为 1 但 `this` 长度不为 1 的维度将发生广播计算。
@@ -28,6 +39,29 @@ struct Tensor4D {
     // 则 `this` 与 `others` 相加时，3 个形状为 `[1, 2, 1, 4]` 的子张量各自与 `others` 对应项相加。
     Tensor4D &operator+=(Tensor4D const &others) {
         // TODO: 实现单向广播的加法
+        auto this_shape = this->shape;
+        auto others_shape = others.shape;
+        // 检查形状是否兼容
+        for (size_t i = 0; i < 4; ++i) {
+            if (this_shape[i] != others_shape[i] && others_shape[i] != 1) {
+                throw std::invalid_argument("Shapes are not compatible for broadcasting");
+            }
+        }
+        // 遍历所有元素进行加法
+        for (size_t i = 0; i < this_shape[0]; ++i) {
+            for (size_t j = 0; j < this_shape[1]; ++j) {
+                for (size_t k = 0; k < this_shape[2]; ++k) {
+                    for (size_t l = 0; l < this_shape[3]; ++l) {
+                        this->at(i, j, k, l) += others.at(
+                            i % others_shape[0],
+                            j % others_shape[1],
+                            k % others_shape[2],
+                            l % others_shape[3]
+                        );
+                    }
+                }
+            }
+        }
         return *this;
     }
 };
